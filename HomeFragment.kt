@@ -1,151 +1,139 @@
-package dev.jord.todo.ui.home
+package org.taskflow.app.ui.home
 
 import android.os.Bundle
-import androidx.fragment.app.Fragment
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.google.android.material.tabs.TabLayout
 import dagger.hilt.android.AndroidEntryPoint
-import dev.jord.todo.R
-import dev.jord.todo.data.model.Task
-import dev.jord.todo.databinding.FragmentHomeBinding
-import dev.jord.todo.ui.auth.AuthViewModel
-import dev.jord.todo.util.UiState
-import dev.jord.todo.util.hide
-import dev.jord.todo.util.show
-import dev.jord.todo.util.snackbar
+import org.taskflow.app.R
+import org.taskflow.app.data.model.Task
+import org.taskflow.app.databinding.FragmentHomeBinding
+import org.taskflow.app.ui.auth.AuthViewModel
+import org.taskflow.app.util.UiState
+import org.taskflow.app.util.hide
+import org.taskflow.app.util.show
+import org.taskflow.app.util.snackbar
 
 @AndroidEntryPoint
-class HomeFragment : Fragment() {
-    val TAG = "HomeFragment"
-    private lateinit var binding: FragmentHomeBinding
-    private val viewModel: TaskViewModel by viewModels()
-    private val authViewModel: AuthViewModel by viewModels()
-    val adapter by lazy {
+class DashboardFragment : Fragment() {
+
+    private lateinit var ui: FragmentHomeBinding
+    private val taskVM: TaskViewModel by viewModels()
+    private val sessionVM: AuthViewModel by viewModels()
+
+    private val taskAdapter by lazy {
         TaskAdapter(
-            donePressed = { task -> donePressed(task) },
-            deletePressed = { task -> deletePressed(task) },
-            editPressed = { task -> editPressed(task) }
+            donePressed = { markAsDone(it) },
+            deletePressed = { removeTask(it) },
+            editPressed = { editTask(it) }
         )
     }
-    private var taskList = mutableListOf<Task>()
-    private var incompleteTaskList = mutableListOf<Task>()
-    private var completeTaskList = mutableListOf<Task>()
+
+    private var allTasks = mutableListOf<Task>()
+    private var pendingTasks = mutableListOf<Task>()
+    private var finishedTasks = mutableListOf<Task>()
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View {
-        if (this::binding.isInitialized){
-            return binding.root
-        }else {
-            binding = FragmentHomeBinding.inflate(inflater, container, false)
-            return binding.root
+        if (::ui.isInitialized) {
+            return ui.root
         }
+        ui = FragmentHomeBinding.inflate(inflater, container, false)
+        return ui.root
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        binding.addTaskButton.setOnClickListener {
-            activity?.supportFragmentManager?.beginTransaction()
-                ?.replace(R.id.container, AddTaskFragment())
-                ?.commit();
+
+        ui.addTaskButton.setOnClickListener {
+            parentFragmentManager.beginTransaction()
+                .replace(R.id.container, TaskEditorFragment())
+                .commit()
         }
 
-        binding.taskList.layoutManager = LinearLayoutManager(requireContext())
-        binding.taskList.adapter = adapter
-        authViewModel.getSession {
-            viewModel.getTasks(it)
+        ui.taskList.layoutManager = LinearLayoutManager(requireContext())
+        ui.taskList.adapter = taskAdapter
+
+        sessionVM.getSession {
+            taskVM.getTasks(it)
         }
-        observer()
-        tabsObserver()
+
+        observeTasks()
+        handleTabChanges()
     }
 
-    private fun observer() {
-        viewModel.tasks.observe(viewLifecycleOwner) { state ->
+    private fun observeTasks() {
+        taskVM.tasks.observe(viewLifecycleOwner) { state ->
             when (state) {
-                is UiState.Loading -> {
-                    binding.progressBar.show()
-                }
+                is UiState.Loading -> ui.progressBar.show()
                 is UiState.Success -> {
-                    binding.progressBar.hide()
-                    taskList = state.data.toMutableList()
-                    for(task in taskList){
-                        if(!task.completed){
-                            incompleteTaskList.add(task)
-                        }
-                    }
-                    adapter.updateList(incompleteTaskList)
+                    ui.progressBar.hide()
+                    allTasks = state.data.toMutableList()
+                    pendingTasks = allTasks.filter { !it.completed }.toMutableList()
+                    taskAdapter.updateList(pendingTasks)
                 }
                 is UiState.Failure -> {
-                    binding.progressBar.hide()
+                    ui.progressBar.hide()
                     snackbar("Error loading tasks")
                 }
-                else -> {
-                    binding.progressBar.hide()
-                }
+                else -> ui.progressBar.hide()
             }
         }
     }
 
-    private fun tabsObserver() {
-        binding.tabs.addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener {
+    private fun handleTabChanges() {
+        ui.tabs.addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener {
             override fun onTabSelected(tab: TabLayout.Tab?) {
-                if (tab?.position == 0) {
-                    incompleteTaskList.clear()
-                    for(task in taskList){
-                        if(!task.completed){
-                            incompleteTaskList.add(task)
+                tab?.let {
+                    when (it.position) {
+                        0 -> {
+                            pendingTasks = allTasks.filter { task -> !task.completed }.toMutableList()
+                            taskAdapter.updateList(pendingTasks)
+                        }
+                        1 -> {
+                            finishedTasks = allTasks.filter { task -> task.completed }.toMutableList()
+                            taskAdapter.updateList(finishedTasks)
                         }
                     }
-                    adapter.updateList(incompleteTaskList)
-                } else {
-                    completeTaskList.clear()
-                    for(task in taskList){
-                        if(task.completed){
-                            completeTaskList.add(task)
-                        }
-                    }
-                    adapter.updateList(completeTaskList)
                 }
             }
 
-            override fun onTabUnselected(tab: TabLayout.Tab?) {
-            }
-
-            override fun onTabReselected(tab: TabLayout.Tab?) {
-            }
+            override fun onTabUnselected(tab: TabLayout.Tab?) {}
+            override fun onTabReselected(tab: TabLayout.Tab?) {}
         })
     }
 
-    private fun deletePressed(task: Task) {
-        viewModel.deleteTask(task)
+    private fun removeTask(task: Task) {
+        taskVM.deleteTask(task)
         snackbar("Task deleted successfully!")
-        activity?.supportFragmentManager?.beginTransaction()
-            ?.replace(R.id.container, HomeFragment())
-            ?.commit();
+        refresh()
     }
 
-    private fun donePressed(task: Task) {
-        viewModel.doneTask(task)
+    private fun markAsDone(task: Task) {
+        taskVM.doneTask(task)
         snackbar("Toggled done status!")
-        activity?.supportFragmentManager?.beginTransaction()
-            ?.replace(R.id.container, HomeFragment())
-            ?.commit();
+        refresh()
     }
 
-    private fun editPressed(task: Task) {
-        val addTaskFragmentSheet = AddTaskFragment(task)
-        addTaskFragmentSheet.setDismissListener {
+    private fun editTask(task: Task) {
+        val editorSheet = TaskEditorFragment(task)
+        editorSheet.setOnDismissListener {
             if (it) {
-                authViewModel.getSession {
-                    viewModel.getTasks(it)
-                }
+                sessionVM.getSession { user -> taskVM.getTasks(user) }
             }
         }
-        addTaskFragmentSheet.show(childFragmentManager,"create_task")
+        editorSheet.show(childFragmentManager, "edit_task")
     }
+
+    private fun refresh() {
+        parentFragmentManager.beginTransaction()
+            .replace(R.id.container, DashboardFragment())
+            .commit()
+    }
 }

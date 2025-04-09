@@ -1,114 +1,112 @@
-package dev.jord.todo.ui.auth
+package org.taskflow.app.ui.auth
 
 import android.content.Intent
 import android.os.Bundle
-import androidx.fragment.app.Fragment
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.appcompat.app.AppCompatActivity
+import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import dagger.hilt.android.AndroidEntryPoint
-import dev.jord.todo.MainActivity
-import dev.jord.todo.data.model.User
-import dev.jord.todo.util.*
-import dev.jord.todo.R
-import dev.jord.todo.databinding.FragmentRegisterBinding
+import org.taskflow.app.MainActivity
+import org.taskflow.app.R
+import org.taskflow.app.data.model.User
+import org.taskflow.app.databinding.FragmentRegisterBinding
+import org.taskflow.app.util.*
+import org.taskflow.app.util.UiState.*
 
 @AndroidEntryPoint
-class RegisterFragment : Fragment() {
+class SignupFragment : Fragment() {
 
-    val TAG: String = "RegisterFragment"
-    private var _binding: FragmentRegisterBinding? = null
-    private val binding get() = _binding!!
-    val viewModel: AuthViewModel by viewModels()
+    private var _uiBinding: FragmentRegisterBinding? = null
+    private val uiBinding get() = _uiBinding!!
+    private val authViewModel: AuthViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        (activity as AppCompatActivity?)!!.supportActionBar!!.show()
+        (activity as? AppCompatActivity)?.supportActionBar?.show()
     }
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
         savedInstanceState: Bundle?
-    ): View? {
-        _binding = FragmentRegisterBinding.inflate(inflater, container, false)
-        return binding.root
+    ): View {
+        _uiBinding = FragmentRegisterBinding.inflate(inflater, container, false)
+        return uiBinding.root
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        observer()
-        binding.register.setOnClickListener {
-            if (validation()){
-                viewModel.register(
-                    email = binding.email.text.toString(),
-                    password = binding.password.text.toString(),
-                    user = getUserObj()
+        setupObserver()
+        uiBinding.register.setOnClickListener {
+            if (isInputValid()) {
+                authViewModel.register(
+                    email = uiBinding.email.text.toString(),
+                    password = uiBinding.password.text.toString(),
+                    user = buildUser()
                 )
             }
         }
     }
 
-    private fun observer() {
-        viewModel.register.observe(viewLifecycleOwner) { state ->
-            when(state){
-                is UiState.Loading -> {
-                    binding.loading.show()
+    private fun setupObserver() {
+        authViewModel.register.observe(viewLifecycleOwner) { state ->
+            when (state) {
+                is Loading -> uiBinding.loading.show()
+                is Failure -> {
+                    uiBinding.loading.hide()
+                    snackbar("Registration failed. Please try again.")
                 }
-                is UiState.Failure -> {
-                    binding.loading.hide()
-                    snackbar("Registration error")
-                }
-                is UiState.Success -> {
-                    binding.loading.hide()
+                is Success -> {
+                    uiBinding.loading.hide()
                     snackbar(state.data)
-                    (activity as AppCompatActivity?)!!.supportActionBar!!.hide()
-                    startActivity(Intent(activity, MainActivity::class.java))
+                    (activity as? AppCompatActivity)?.supportActionBar?.hide()
+                    startActivity(Intent(requireActivity(), MainActivity::class.java))
                 }
             }
         }
     }
 
-    private fun validation(): Boolean {
+    private fun isInputValid(): Boolean {
         var isValid = true
 
-        if (binding.name.text.isNullOrEmpty()){
-            isValid = false
+        if (uiBinding.name.text.isNullOrBlank()) {
             snackbar(getString(R.string.enter_name))
+            isValid = false
         }
 
-        if (binding.email.text.isNullOrEmpty()){
-            isValid = false
+        val emailText = uiBinding.email.text.toString()
+        if (emailText.isBlank()) {
             snackbar(getString(R.string.enter_email))
-        }else{
-            if (!binding.email.text.toString().isValidEmail()){
-                isValid = false
-                snackbar(getString(R.string.invalid_email))
-            }
-        }
-        if (binding.password.text.isNullOrEmpty()){
             isValid = false
-            snackbar(getString(R.string.enter_password))
-        }else{
-            if (binding.password.text.toString().length < 8){
-                isValid = false
-                snackbar(getString(R.string.invalid_password))
-            }
+        } else if (!emailText.isValidEmail()) {
+            snackbar(getString(R.string.invalid_email))
+            isValid = false
         }
+
+        val passwordText = uiBinding.password.text.toString()
+        if (passwordText.isBlank()) {
+            snackbar(getString(R.string.enter_password))
+            isValid = false
+        } else if (passwordText.length < 8) {
+            snackbar(getString(R.string.invalid_password))
+            isValid = false
+        }
+
         return isValid
     }
 
-    private fun getUserObj(): User {
+    private fun buildUser(): User {
         return User(
             id = "",
-            name = binding.name.text.toString(),
-            email = binding.email.text.toString(),
+            name = uiBinding.name.text.toString(),
+            email = uiBinding.email.text.toString()
         )
     }
 
     override fun onDestroyView() {
         super.onDestroyView()
-        _binding = null
-    }
+        _uiBinding = null
+    }
 }

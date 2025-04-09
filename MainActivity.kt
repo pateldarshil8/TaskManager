@@ -1,4 +1,4 @@
-package dev.jord.todo
+package org.taskflow.app
 
 import android.content.Intent
 import android.os.Bundle
@@ -6,60 +6,65 @@ import android.view.Menu
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.WindowCompat
 import androidx.fragment.app.Fragment
-import androidx.navigation.ui.AppBarConfiguration
 import com.google.firebase.auth.ktx.auth
 import com.google.firebase.ktx.Firebase
 import dagger.hilt.android.AndroidEntryPoint
-import dev.jord.todo.databinding.ActivityMainBinding
-import dev.jord.todo.ui.account.AccountFragment
-import dev.jord.todo.ui.home.HomeFragment
+import org.taskflow.app.databinding.ActivityMainBinding
+import org.taskflow.app.ui.account.ProfileFragment
+import org.taskflow.app.ui.home.DashboardFragment
+import androidx.navigation.ui.AppBarConfiguration
 
 @AndroidEntryPoint
 class MainActivity : AppCompatActivity() {
 
-    private lateinit var appBarConfiguration: AppBarConfiguration
-    private lateinit var binding: ActivityMainBinding
-    val user = Firebase.auth.currentUser
+    private lateinit var viewBinding: ActivityMainBinding
+    private lateinit var navigationConfig: AppBarConfiguration
+    private val activeUser = Firebase.auth.currentUser
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        WindowCompat.setDecorFitsSystemWindows(window, false)
         super.onCreate(savedInstanceState)
+        WindowCompat.setDecorFitsSystemWindows(window, false)
 
-        binding = ActivityMainBinding.inflate(layoutInflater)
-        setContentView(binding.root)
+        viewBinding = ActivityMainBinding.inflate(layoutInflater)
+        setContentView(viewBinding.root)
 
-        setSupportActionBar(binding.toolbar)
-        if (user != null) {
-            loadFragment(HomeFragment())
+        setSupportActionBar(viewBinding.toolbar)
+
+        if (activeUser != null) {
+            showFragment(DashboardFragment())
         } else {
-            val intent = Intent(this, LoginActivity::class.java)
-            startActivity(intent)
+            launchLoginScreen()
         }
-        setupOnClickListener()
+
+        setupBottomNavigation()
     }
 
-    private fun setupOnClickListener() {
-        binding.bottomNavigation.setOnItemSelectedListener {
-            val fragment = when(it.itemId){
-                R.id.home -> { HomeFragment() }
-                R.id.account -> { AccountFragment() }
-                else -> { HomeFragment() }
+    private fun launchLoginScreen() {
+        val loginIntent = Intent(this, LoginActivity::class.java)
+        startActivity(loginIntent)
+        finish()
+    }
+
+    private fun setupBottomNavigation() {
+        viewBinding.bottomNavigation.setOnItemSelectedListener { menuItem ->
+            val nextFragment = when (menuItem.itemId) {
+                R.id.home -> DashboardFragment()
+                R.id.account -> ProfileFragment()
+                else -> DashboardFragment()
             }
-            loadFragment(fragment)
+            showFragment(nextFragment)
             true
         }
     }
 
-    private fun loadFragment(fragment: Fragment) {
-        supportFragmentManager
-            .beginTransaction()
+    private fun showFragment(fragment: Fragment) {
+        supportFragmentManager.beginTransaction()
             .replace(R.id.container, fragment)
             .commit()
     }
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
-        // Inflate the menu; this adds items to the action bar if it is present.
         menuInflater.inflate(R.menu.menu_main, menu)
-        return true
-    }
+        return true
+    }
 }

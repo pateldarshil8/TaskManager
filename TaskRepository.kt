@@ -1,14 +1,14 @@
-package dev.jord.todo.data.repository
+package org.taskflow.app.data.repository
 
-import dev.jord.todo.data.model.Task
-import dev.jord.todo.data.model.User
-import dev.jord.todo.util.UiState
+import org.taskflow.app.data.model.Task
+import org.taskflow.app.data.model.User
+import org.taskflow.app.util.UiState
 
 interface TaskRepository {
-    fun addTask(task: Task, result: (UiState<Pair<Task,String>>) -> Unit)
-    fun updateTask(task: Task, result: (UiState<Pair<Task,String>>) -> Unit)
-    fun deleteTask(task: Task, result: (UiState<Pair<Task,String>>) -> Unit)
-    fun getTask(id: String, result: (UiState<Pair<Task,String>>) -> Unit)
-    fun getTasks(user: User?, result: (UiState<List<Task>>) -> Unit)
-    fun storeTasks(tasks: List<Task>, result: (UiState<String>) -> Unit)
+    fun addTask(task: Task, callback: (UiState<Pair<Task, String>>) -> Unit)
+    fun updateTask(task: Task, callback: (UiState<Pair<Task, String>>) -> Unit)
+    fun deleteTask(task: Task, callback: (UiState<Pair<Task, String>>) -> Unit)
+    fun getTask(taskId: String, callback: (UiState<Pair<Task, String>>) -> Unit)
+    fun getTasks(user: User?, callback: (UiState<List<Task>>) -> Unit)
+    fun storeTasks(tasks: List<Task>, callback: (UiState<String>) -> Unit)
 }

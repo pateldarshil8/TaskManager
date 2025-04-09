@@ -1,58 +1,54 @@
-package dev.jord.todo.ui.auth
+package org.taskflow.app.ui.auth
 
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import dagger.hilt.android.lifecycle.HiltViewModel
-import dev.jord.todo.data.model.User
-import dev.jord.todo.data.repository.AuthRepository
-import dev.jord.todo.util.UiState
+import org.taskflow.app.data.model.User
+import org.taskflow.app.data.repository.AuthRepository
+import org.taskflow.app.util.UiState
 import javax.inject.Inject
 
 @HiltViewModel
-class AuthViewModel @Inject constructor(
-    val repository: AuthRepository
-): ViewModel() {
+class UserAuthViewModel @Inject constructor(
+    private val authRepo: AuthRepository
+) : ViewModel() {
 
-    private val TAG = "AuthViewModel"
-    private val _register = MutableLiveData<UiState<String>>()
-    val register: LiveData<UiState<String>>
-        get() = _register
+    private val _signupState = MutableLiveData<UiState<String>>()
+    val signupState: LiveData<UiState<String>> get() = _signupState
 
-    private val _login = MutableLiveData<UiState<String>>()
-    val login: LiveData<UiState<String>>
-        get() = _login
+    private val _loginState = MutableLiveData<UiState<String>>()
+    val loginState: LiveData<UiState<String>> get() = _loginState
 
-    private val _forgotPassword = MutableLiveData<UiState<String>>()
-    val forgotPassword: LiveData<UiState<String>>
-        get() = _forgotPassword
+    private val _recoveryState = MutableLiveData<UiState<String>>()
+    val recoveryState: LiveData<UiState<String>> get() = _recoveryState
 
-    fun register(email: String, password: String, user: User) {
-        _register.value = UiState.Loading
-        repository.registerUser(email = email, password = password, user = user) {
-            _register.value = it
+    fun signup(email: String, password: String, user: User) {
+        _signupState.value = UiState.Loading
+        authRepo.registerUser(email, password, user) {
+            _signupState.value = it
         }
     }
 
-    fun login(email: String, password: String) {
-        _login.value = UiState.Loading
-        repository.loginUser(email, password) {
-            _login.value = it
+    fun signIn(email: String, password: String) {
+        _loginState.value = UiState.Loading
+        authRepo.loginUser(email, password) {
+            _loginState.value = it
         }
     }
 
-    fun forgotPassword(email: String) {
-        _forgotPassword.value = UiState.Loading
-        repository.forgotPassword(email) {
-            _forgotPassword.value = it
+    fun resetPassword(email: String) {
+        _recoveryState.value = UiState.Loading
+        authRepo.forgotPassword(email) {
+            _recoveryState.value = it
         }
     }
 
-    fun logout(result: () -> Unit){
-        repository.logout(result)
+    fun signOut(onComplete: () -> Unit) {
+        authRepo.logout(onComplete)
     }
 
-    fun getSession(result: (User?) -> Unit){
-        repository.getSession(result)
-    }
+    fun fetchUserSession(onResult: (User?) -> Unit) {
+        authRepo.getSession(onResult)
+    }
 }
